@@ -1,6 +1,6 @@
 from datetime import datetime
 from collections import defaultdict
-
+import heapq  # For efficient top-k calculations
 
 def reports_3pl(data):
     # ----------------- Base Calculations -----------------
@@ -68,119 +68,99 @@ def reports_3pl(data):
 
         return result
 
-    # ----------------- Table Data -----------------
-    def table_data_rows(data):
-        drivers = defaultdict(
-            lambda: {
-                "Amount": 0,
-                "Orders": 0,
-                "DeliveryTimes": [],
-                "AssignTimes": [],
-                "PickupWaits": [],
-                "TravelTimes": [],
-                "DropoffWaits": [],
+    # ----------------- Table Data + Top 10 Drivers -----------------
+    drivers = defaultdict(
+        lambda: {
+            "Amount": 0,
+            "Orders": 0,
+            "DeliveryTimes": [],
+            "AssignTimes": [],
+            "PickupWaits": [],
+            "TravelTimes": [],
+            "DropoffWaits": [],
+        }
+    )
+
+    def parse_dt(ts):
+        return datetime.strptime(ts, "%Y-%m-%d %H:%M:%S") if ts else None
+
+    for order in data:
+        driver = order.get("pickup_task", {}).get("driver_name", "Unknown")
+        amount_str = order.get("amount")
+
+        try:
+            amount = round(abs(float(amount_str)), 2)
+        except:
+            amount = 0
+
+        created = parse_dt(order.get("created_at"))
+        pickup = order.get("pickup_task", {})
+        delivery = order.get("delivery_task", {})
+
+        pickup_assigned = parse_dt(pickup.get("assigned_at"))
+        pickup_arrived = parse_dt(pickup.get("arrived_at"))
+        pickup_success = parse_dt(pickup.get("successful_at"))
+
+        delivery_started = parse_dt(delivery.get("started_at"))
+        delivery_arrived = parse_dt(delivery.get("arrived_at"))
+        delivery_success = parse_dt(delivery.get("successful_at"))
+
+        if delivery_success and pickup_assigned:
+            drivers[driver]["DeliveryTimes"].append(
+                (delivery_success - pickup_assigned).total_seconds() / 60
+            )
+
+        if created and pickup_assigned:
+            drivers[driver]["AssignTimes"].append(
+                (pickup_assigned - created).total_seconds() / 60
+            )
+
+        if pickup_success and pickup_arrived:
+            drivers[driver]["PickupWaits"].append(
+                (pickup_success - pickup_arrived).total_seconds() / 60
+            )
+
+        if delivery_arrived and delivery_started:
+            drivers[driver]["TravelTimes"].append(
+                (delivery_arrived - delivery_started).total_seconds() / 60
+            )
+
+        if delivery_success and delivery_arrived:
+            drivers[driver]["DropoffWaits"].append(
+                (delivery_success - delivery_arrived).total_seconds() / 60
+            )
+
+        drivers[driver]["Amount"] += amount
+        drivers[driver]["Orders"] += 1
+
+    # ----------------- Build Table Rows -----------------
+    rows = []
+    for driver, stats in drivers.items():
+        def avg(lst):
+            return round(sum(lst) / len(lst), 2) if lst else None
+
+        rows.append(
+            {
+                "Driver": driver,
+                "Orders": stats["Orders"],
+                "Amount": round(stats["Amount"], 2),
+                "Average Delivery Time (min)": avg(stats["DeliveryTimes"]),
+                "Avg Time to Assign (min)": avg(stats["AssignTimes"]),
+                "Avg Pickup Waiting (min)": avg(stats["PickupWaits"]),
+                "Avg Travel to Customer (min)": avg(stats["TravelTimes"]),
+                "Avg Dropoff Waiting (min)": avg(stats["DropoffWaits"]),
             }
         )
 
-        def parse_dt(ts):
-            return datetime.strptime(ts, "%Y-%m-%d %H:%M:%S") if ts else None
-
-        for order in data:
-            driver = order.get("pickup_task", {}).get("driver_name", "Unknown")
-            amount_str = order.get("amount")
-
-            try:
-                amount = round(abs(float(amount_str)), 2)
-            except:
-                amount = 0
-
-            created = parse_dt(order.get("created_at"))
-            pickup = order.get("pickup_task", {})
-            delivery = order.get("delivery_task", {})
-
-            pickup_assigned = parse_dt(pickup.get("assigned_at"))
-            pickup_arrived = parse_dt(pickup.get("arrived_at"))
-            pickup_success = parse_dt(pickup.get("successful_at"))
-
-            delivery_started = parse_dt(delivery.get("started_at"))
-            delivery_arrived = parse_dt(delivery.get("arrived_at"))
-            delivery_success = parse_dt(delivery.get("successful_at"))
-
-            if created and delivery_success:
-                drivers[driver]["DeliveryTimes"].append(
-                    (delivery_success - pickup_assigned).total_seconds() / 60
-                )
-
-            if created and pickup_assigned:
-                drivers[driver]["AssignTimes"].append(
-                    (pickup_assigned - created).total_seconds() / 60
-                )
-
-            if pickup_success and pickup_arrived:
-                drivers[driver]["PickupWaits"].append(
-                    (pickup_success - pickup_arrived).total_seconds() / 60
-                )
-
-            if delivery_arrived and delivery_started:
-                drivers[driver]["TravelTimes"].append(
-                    (delivery_arrived - delivery_started).total_seconds() / 60
-                )
-
-            if delivery_success and delivery_arrived:
-                drivers[driver]["DropoffWaits"].append(
-                    (delivery_success - delivery_arrived).total_seconds() / 60
-                )
-
-            drivers[driver]["Amount"] += amount
-            drivers[driver]["Orders"] += 1
-
-        rows = []
-        for driver, stats in drivers.items():
-
-            def avg(lst):
-                return round(sum(lst) / len(lst), 2) if lst else None
-
-            rows.append(
-                {
-                    "Driver": driver,
-                    "Orders": stats["Orders"],
-                    "Amount": round(stats["Amount"], 2),
-                    "Average Delivery Time (min)": avg(stats["DeliveryTimes"]),
-                    "Avg Time to Assign (min)": avg(stats["AssignTimes"]),
-                    "Avg Pickup Waiting (min)": avg(stats["PickupWaits"]),
-                    "Avg Travel to Customer (min)": avg(stats["TravelTimes"]),
-                    "Avg Dropoff Waiting (min)": avg(stats["DropoffWaits"]),
-                }
-            )
-
-        return rows
-
-    # ----------------- Top 10 Drivers -----------------
-    def top_drivers(rows):
-        """Return top 10 drivers by Orders, DeliveryTime, and Amount"""
-        # Most orders
-        top_by_orders = sorted(rows, key=lambda x: x["Orders"], reverse=True)[:10]
-
-        # Least average delivery time (exclude None)
-        filtered_rows = [
-            r for r in rows if r["Average Delivery Time (min)"] is not None
-        ]
-        top_by_fastest_delivery = sorted(
-            filtered_rows, key=lambda x: x["Average Delivery Time (min)"]
-        )[:10]
-
-        # Most fare collected
-        top_by_fare = sorted(rows, key=lambda x: x["Amount"], reverse=True)[:10]
-
-        return {
-            "top_by_orders": top_by_orders,
-            "top_by_fastest_delivery": top_by_fastest_delivery,
-            "top_by_fare": top_by_fare,
-        }
+    # ----------------- Optimized Top 10 Drivers -----------------
+    top_by_orders = heapq.nlargest(10, rows, key=lambda x: x["Orders"])
+    top_by_fare = heapq.nlargest(10, rows, key=lambda x: x["Amount"])
+    top_by_fastest_delivery = heapq.nsmallest(
+        10, [r for r in rows if r["Average Delivery Time (min)"] is not None],
+        key=lambda x: x["Average Delivery Time (min)"]
+    )
 
     # ----------------- Build Summary -----------------
-    table_rows = table_data_rows(data)
-
     summary = {
         "Number of Orders": count_orders(data),
         "Total Fare": total_fare(data),
@@ -189,8 +169,12 @@ def reports_3pl(data):
         "Total Earnings": total_earnings(data),
         "Total Revenue": total_revenue(data),
         "Charts": charts_per_driver_group(data),
-        "table_data": table_rows,
-        "top_drivers": top_drivers(table_rows),  # ✅ Added top 10 drivers here
+        "table_data": rows,
+        "top_drivers": {
+            "top_by_orders": top_by_orders,
+            "top_by_fastest_delivery": top_by_fastest_delivery,
+            "top_by_fare": top_by_fare
+        }
     }
 
     return summary
