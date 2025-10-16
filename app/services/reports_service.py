@@ -1,7 +1,9 @@
 from datetime import datetime
 from collections import defaultdict
 
+
 def reports_3pl(data):
+    # ----------------- Base Calculations -----------------
     def count_orders(data):
         return len(data)
 
@@ -16,7 +18,7 @@ def reports_3pl(data):
         total_minutes = 0
         count = 0
         for order in data:
-            created_str = order.get("created_at")
+            created_str = order.get("pickup_task", {}).get("assigned_at")
             successful_str = order.get("delivery_task", {}).get("successful_at")
             if not created_str or not successful_str:
                 continue
@@ -36,6 +38,7 @@ def reports_3pl(data):
         fare = total_fare(data)
         return round(fare - (fare * 0.85), 2)
 
+    # ----------------- Charts -----------------
     def charts_per_driver_group(data):
         groups = defaultdict(list)
         for order in data:
@@ -65,6 +68,7 @@ def reports_3pl(data):
 
         return result
 
+    # ----------------- Table Data -----------------
     def table_data_rows(data):
         drivers = defaultdict(
             lambda: {
@@ -104,7 +108,7 @@ def reports_3pl(data):
 
             if created and delivery_success:
                 drivers[driver]["DeliveryTimes"].append(
-                    (delivery_success - created).total_seconds() / 60
+                    (delivery_success - pickup_assigned).total_seconds() / 60
                 )
 
             if created and pickup_assigned:
@@ -132,6 +136,7 @@ def reports_3pl(data):
 
         rows = []
         for driver, stats in drivers.items():
+
             def avg(lst):
                 return round(sum(lst) / len(lst), 2) if lst else None
 
@@ -150,6 +155,32 @@ def reports_3pl(data):
 
         return rows
 
+    # ----------------- Top 10 Drivers -----------------
+    def top_drivers(rows):
+        """Return top 10 drivers by Orders, DeliveryTime, and Amount"""
+        # Most orders
+        top_by_orders = sorted(rows, key=lambda x: x["Orders"], reverse=True)[:10]
+
+        # Least average delivery time (exclude None)
+        filtered_rows = [
+            r for r in rows if r["Average Delivery Time (min)"] is not None
+        ]
+        top_by_fastest_delivery = sorted(
+            filtered_rows, key=lambda x: x["Average Delivery Time (min)"]
+        )[:10]
+
+        # Most fare collected
+        top_by_fare = sorted(rows, key=lambda x: x["Amount"], reverse=True)[:10]
+
+        return {
+            "top_by_orders": top_by_orders,
+            "top_by_fastest_delivery": top_by_fastest_delivery,
+            "top_by_fare": top_by_fare,
+        }
+
+    # ----------------- Build Summary -----------------
+    table_rows = table_data_rows(data)
+
     summary = {
         "Number of Orders": count_orders(data),
         "Total Fare": total_fare(data),
@@ -158,7 +189,8 @@ def reports_3pl(data):
         "Total Earnings": total_earnings(data),
         "Total Revenue": total_revenue(data),
         "Charts": charts_per_driver_group(data),
-        "table_data": table_data_rows(data),
+        "table_data": table_rows,
+        "top_drivers": top_drivers(table_rows),  # ✅ Added top 10 drivers here
     }
 
     return summary
