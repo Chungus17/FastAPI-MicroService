@@ -1,26 +1,19 @@
-from collections import defaultdict, Counter
+from collections import defaultdict
 from datetime import datetime
 import calendar
 from statistics import mean
 
 def hourlyReport(data, start_date, end_date, top_n_clients=5):
-    """
-    Generates hourly client report with summary, hourly chart, and heatmap.
-
-    data: list of order dicts
-    start_date, end_date: strings for date range
-    top_n_clients: number of top clients per hour to show
-    """
 
     # ---------- Initialize structures ----------
-    hour_orders = defaultdict(list)                # hour -> list of orders
+    hour_orders = defaultdict(list)                        # hour -> list of orders
     hour_client_orders = defaultdict(lambda: defaultdict(int))  # hour -> client -> count
     weekday_hour_orders = defaultdict(lambda: defaultdict(list)) # weekday -> hour -> list of orders
+    weekday_dates = defaultdict(set)                       # weekday -> set of unique dates
     delivery_times = []
 
     total_orders = 0
     total_amount = 0.0
-    all_dates = set()
 
     # ---------- Process each order ----------
     for order in data:
@@ -36,7 +29,7 @@ def hourlyReport(data, start_date, end_date, top_n_clients=5):
         # Track totals
         total_orders += 1
         total_amount += amount
-        all_dates.add(dt.date())
+        weekday_dates[weekday].add(dt.date())
 
         # Hourly and weekday-hourly aggregation
         hour_orders[hour].append(order)
@@ -54,11 +47,10 @@ def hourlyReport(data, start_date, end_date, top_n_clients=5):
             except:
                 pass
 
-    num_days = max(len(all_dates), 1)  # avoid division by zero
-
     # ---------- Hourly chart ----------
     hourly_chart = []
     for h in range(24):
+        num_days = max(len(set(dt.date() for dt in [datetime.strptime(o["created_at"], "%Y-%m-%d %H:%M:%S") for o in hour_orders[h]])), 1)
         avg_orders = len(hour_orders[h]) / num_days
         top_clients = sorted(hour_client_orders[h].items(), key=lambda x: x[1], reverse=True)[:top_n_clients]
         hourly_chart.append({
@@ -71,8 +63,9 @@ def hourlyReport(data, start_date, end_date, top_n_clients=5):
     heatmap = []
     for w in range(7):
         hours_list = []
+        num_days_for_weekday = max(len(weekday_dates[w]), 1)
         for h in range(24):
-            avg_orders = len(weekday_hour_orders[w][h]) / num_days
+            avg_orders = len(weekday_hour_orders[w][h]) / num_days_for_weekday
             hours_list.append({"hour": h, "average_orders": round(avg_orders, 2)})
         heatmap.append({
             "weekday": calendar.day_name[w],
@@ -84,11 +77,16 @@ def hourlyReport(data, start_date, end_date, top_n_clients=5):
     hottest_hour = max(hourly_chart, key=lambda x: x["average_orders"])
     coolest_hour = min(hourly_chart, key=lambda x: x["average_orders"])
 
-    # Hottest / coolest day
+    # Hottest / coolest day and average orders per weekday
     day_totals = []
+    average_orders_per_weekday = {}
     for w in range(7):
-        total = sum(len(weekday_hour_orders[w][h]) / num_days for h in range(24))
-        day_totals.append(total)
+        num_days_for_weekday = max(len(weekday_dates[w]), 1)
+        total_orders_for_weekday = sum(len(weekday_hour_orders[w][h]) for h in range(24))
+        avg_orders_for_weekday = total_orders_for_weekday / num_days_for_weekday
+        day_totals.append(avg_orders_for_weekday)
+        average_orders_per_weekday[calendar.day_name[w]] = round(avg_orders_for_weekday, 2)
+
     hottest_day_index = day_totals.index(max(day_totals))
     coolest_day_index = day_totals.index(min(day_totals))
 
@@ -107,7 +105,8 @@ def hourlyReport(data, start_date, end_date, top_n_clients=5):
         },
         "avg_delivery_time": round(mean(delivery_times), 2) if delivery_times else None,
         "total_amount_collected": round(total_amount, 2),
-        "avg_fare_per_order": round(total_amount / total_orders, 2) if total_orders > 0 else 0
+        "avg_fare_per_order": round(total_amount / total_orders, 2) if total_orders > 0 else 0,
+        "average_orders_per_weekday": average_orders_per_weekday
     }
 
     return {
