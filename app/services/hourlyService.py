@@ -49,6 +49,7 @@ def hourlyReport(data, start_date, end_date, top_n_clients=5):
 
     # ---------- Hourly chart ----------
     hourly_chart = []
+    total_orders_per_hour = {}  # new: total orders for each hour
     for h in range(24):
         num_days = max(len(set(dt.date() for dt in [datetime.strptime(o["created_at"], "%Y-%m-%d %H:%M:%S") for o in hour_orders[h]])), 1)
         avg_orders = len(hour_orders[h]) / num_days
@@ -58,55 +59,62 @@ def hourlyReport(data, start_date, end_date, top_n_clients=5):
             "average_orders": round(avg_orders, 2),
             "top_clients": [{"name": c, "orders": n} for c, n in top_clients]
         })
+        total_orders_per_hour[h] = len(hour_orders[h])
 
     # ---------- Heatmap ----------
     heatmap = []
+    total_orders_per_weekday = {}  # new: total orders for each weekday
     for w in range(7):
         hours_list = []
         num_days_for_weekday = max(len(weekday_dates[w]), 1)
+        total_orders_for_day = 0
         for h in range(24):
             avg_orders = len(weekday_hour_orders[w][h]) / num_days_for_weekday
             hours_list.append({"hour": h, "average_orders": round(avg_orders, 2)})
+            total_orders_for_day += len(weekday_hour_orders[w][h])
         heatmap.append({
             "weekday": calendar.day_name[w],
             "hours": hours_list
         })
+        total_orders_per_weekday[calendar.day_name[w]] = total_orders_for_day
 
     # ---------- Summary ----------
     # Hottest / coolest hour
     hottest_hour = max(hourly_chart, key=lambda x: x["average_orders"])
     coolest_hour = min(hourly_chart, key=lambda x: x["average_orders"])
 
-    # Hottest / coolest day and average orders per weekday
-    day_totals = []
-    average_orders_per_weekday = {}
+    # Hottest / coolest day
+    day_totals_avg = []
+    average_orders_per_weekday_avg = {}
     for w in range(7):
         num_days_for_weekday = max(len(weekday_dates[w]), 1)
         total_orders_for_weekday = sum(len(weekday_hour_orders[w][h]) for h in range(24))
         avg_orders_for_weekday = total_orders_for_weekday / num_days_for_weekday
-        day_totals.append(avg_orders_for_weekday)
-        average_orders_per_weekday[calendar.day_name[w]] = round(avg_orders_for_weekday, 2)
+        day_totals_avg.append(avg_orders_for_weekday)
+        average_orders_per_weekday_avg[calendar.day_name[w]] = round(avg_orders_for_weekday, 2)
 
-    hottest_day_index = day_totals.index(max(day_totals))
-    coolest_day_index = day_totals.index(min(day_totals))
+    hottest_day_index = day_totals_avg.index(max(day_totals_avg))
+    coolest_day_index = day_totals_avg.index(min(day_totals_avg))
 
     summary = {
         "total_orders": total_orders,
+        "total_orders_per_hour": total_orders_per_hour,
+        "total_orders_per_weekday": total_orders_per_weekday,
         "date_range": {"start": start_date, "end": end_date},
         "hottest_hour": hottest_hour,
         "coolest_hour": coolest_hour,
         "hottest_day": {
             "weekday": calendar.day_name[hottest_day_index],
-            "average_orders": round(day_totals[hottest_day_index], 2)
+            "average_orders": round(day_totals_avg[hottest_day_index], 2)
         },
         "coolest_day": {
             "weekday": calendar.day_name[coolest_day_index],
-            "average_orders": round(day_totals[coolest_day_index], 2)
+            "average_orders": round(day_totals_avg[coolest_day_index], 2)
         },
         "avg_delivery_time": round(mean(delivery_times), 2) if delivery_times else None,
         "total_amount_collected": round(total_amount, 2),
         "avg_fare_per_order": round(total_amount / total_orders, 2) if total_orders > 0 else 0,
-        "average_orders_per_weekday": average_orders_per_weekday
+        "average_orders_per_weekday": average_orders_per_weekday_avg
     }
 
     return {
