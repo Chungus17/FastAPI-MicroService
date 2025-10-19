@@ -7,6 +7,7 @@ from datetime import time, datetime
 from app.services.driverService import driverReport
 from app.services.clientService import clientReport
 from app.services.hourlyService import hourlyReport
+from app.services.areaReport import areaReport, formatAreas
 from app.utils.data_fetcher import getData
 
 router = APIRouter(prefix="/api", tags=["Reports"])
@@ -142,3 +143,56 @@ async def generate_hourly_report(
     )
 
     return summary
+
+
+@router.get("/area_report")
+async def generate_area_report(
+    start_date: str,
+    end_date: str,
+    start_time: str,                # e.g. "00:00" or "13:30"
+    end_time: str,                  # e.g. "23:59" or "17:30"
+    areas: Optional[List[str]] = Query(default=None, alias="filter_by"),  # optional filter by area names
+    status: str = "all",
+):
+    # 1) Fetch base data for the date range
+    data = await getData(start_date, end_date, "all")
+
+    # 2) Parse time window (supports overnight windows like 22:00–02:00)
+    start_time_obj = datetime.strptime(start_time, "%H:%M").time()
+    end_time_obj = datetime.strptime(end_time, "%H:%M").time()
+
+    def is_in_time_window(dt: datetime) -> bool:
+        t = dt.time()
+        if start_time_obj <= end_time_obj:
+            return start_time_obj <= t <= end_time_obj
+        else:
+            # Overnight range
+            return (t >= start_time_obj) or (t <= end_time_obj)
+
+    # 3) Time filter on created_at
+    data = [
+        o for o in data
+        if o.get("created_at") and is_in_time_window(datetime.strptime(o["created_at"], "%Y-%m-%d %H:%M:%S"))
+    ]
+
+    # 4) Status filter (if not "all")
+    if status.lower() != "all":
+        data = [o for o in data if str(o.get("status", "")).lower() == status.lower()]
+
+    # 5) Enrich with area, latitude, longitude using cached alias map
+    data = formatAreas(data)
+
+    # 6) Optional filter by area names (case-insensitive)
+    if areas and not any(a.lower() == "all" for a in areas):
+        wanted = {a.strip().lower() for a in areas}
+        data = [o for o in data if o.get("area") and o["area"].strip().lower() in wanted]
+
+    # 7) Optionally exclude "Unknown" bucket
+    # if not include_unknown:
+    #     data = [o for o in data if o.get("area") and o["area"] != "Unknown"]
+
+    # 8) Build final report (statcards + heatmap + table)
+    result = areaReport(data)
+
+    return result
+
