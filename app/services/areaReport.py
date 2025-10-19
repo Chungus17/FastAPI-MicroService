@@ -1,9 +1,9 @@
 from collections import defaultdict
 from datetime import datetime, timedelta
 import json
-from pathlib import Path
+import os
 
-AREAS_JSON = Path(__file__).resolve().parents[2] / "utils" / "areas.json"
+AREAS_JSON = os.getenv("AREAS_JSON_PATH")
 
 def formatAreas(data):
     # Load JSON data from file
