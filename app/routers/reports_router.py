@@ -13,8 +13,8 @@ from app.utils.data_fetcher import getData
 router = APIRouter(prefix="/api", tags=["Reports"])
 
 
-@router.get("/3pl_report")
-async def generate_3pl_report(
+@router.get("/driver_report")
+async def generate_driver_report(
     start_date: str,
     end_date: str,
     filter_by: Optional[List[str]] = Query(default=None),

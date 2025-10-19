@@ -1,7 +1,8 @@
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime
 import json
 import os
+import heapq
 
 AREAS_JSON = os.getenv("AREAS_JSON_PATH")
 
@@ -181,5 +182,16 @@ def areaReport(data):
         reverse=True,
     )
 
-    return {"statcards": statcards, "heatmap": heatmap, "table": table}
+    # Take top 10 from the already-sorted table
+    top_rows = table[:10]
+
+    # Recharts-friendly bar data
+    top_areas_bar = [{"name": r["Area"], "value": r["Orders"]} for r in top_rows]
+
+    return {
+        "statcards": statcards,
+        "heatmap": heatmap,
+        "table": table,
+        "top_areas_bar": top_areas_bar,
+    }
 
