@@ -7,7 +7,7 @@ AREAS_JSON = os.getenv("AREAS_JSON_PATH")
 
 def formatAreas(data):
     # Load JSON data from file
-    with open("AREAS_JSON", "r", encoding="utf-8") as file:
+    with open("./utils/areas.json", "r", encoding="utf-8") as file:
         areas_data = json.load(file)
 
     # Build a mapping of each alias → (canonical name, lat, lon)
