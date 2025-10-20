@@ -113,7 +113,7 @@ def areaReport(data):
         areas[area]["Revenue"] += revenue
 
         # client name from "username" (fallback to legacy "user_name")
-        client_name = (order.get("username") or order.get("user_name") or "Unknown").strip() or "Unknown"
+        client_name = (order.get("user_name") or "Unknown").strip() or "Unknown"
         areas[area]["Clients"][client_name] += 1
 
         # coords cache (first non-None wins)
