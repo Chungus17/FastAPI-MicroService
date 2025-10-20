@@ -13,6 +13,7 @@ import redis
 from app.services.driverService import driverReport
 from app.services.clientService import clientReport
 from app.services.hourlyService import hourlyReport
+from app.services.driverEarningsService import driverEarnings
 from app.services.areaReport import areaReport, formatAreas
 from app.services.taskHistoryService import task_history, task_history_table
 from app.utils.data_fetcher import getData
@@ -228,12 +229,11 @@ async def generate_task_history(
         ]
 
     # Start background thread to generate table data
-    threading.Thread(
-        target=task_history_table, args=(job_id, data)
-    ).start()
+    threading.Thread(target=task_history_table, args=(job_id, data)).start()
 
     final_data = task_history(data)
-    return ({"status": "processing", "job_id": job_id, "summary": final_data})
+    return {"status": "processing", "job_id": job_id, "summary": final_data}
+
 
 @router.get("/task_history/{job_id}")
 async def get_task_history_table(job_id: str):
@@ -251,3 +251,33 @@ async def get_task_history_table(job_id: str):
         return {"status": "completed", "table": json.loads(table_data)}
     else:
         return {"status": "processing", "table": []}
+
+
+@router.get("/driver_earnings")
+async def generate_driver_earnings(
+    start_date: str,
+    end_date: str,
+    filter_by: Optional[List[str]] = Query(default=None),
+):
+    data = await getData(start_date, end_date, "all")
+
+    # Filter by driver
+    if filter_by and not any(f.lower() == "all" for f in filter_by):
+        data = [
+            order
+            for order in data
+            if any(
+                (
+                    (order.get("pickup_task", {}).get("driver_name") or "")
+                    .strip()
+                    .split(" ")[-1]
+                    .upper()
+                    == f.upper()
+                )
+                for f in filter_by
+                if (order.get("pickup_task", {}).get("driver_name") or "").strip()
+            )
+        ]
+
+    result = driverEarnings(data)
+    return result
