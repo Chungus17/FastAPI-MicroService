@@ -246,7 +246,7 @@ async def get_task_history_table(job_id: str):
         password=os.environ.get("REDIS_PASSWORD"),
     )
 
-    table_data = redis_client.get(f"task_history_table:{job_id}")
+    table_data = redis_client.get(job_id)
     if table_data:
         return {"status": "completed", "table": json.loads(table_data)}
     else:
