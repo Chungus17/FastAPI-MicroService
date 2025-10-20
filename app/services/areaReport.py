@@ -61,8 +61,11 @@ def areaReport(data):
             "PickupWaits": [],
             "TravelTimes": [],
             "DropoffWaits": [],
+            "Clients": defaultdict(int),  # <-- per-area client counter
         }
     )
+    # cache first seen coords per area to avoid repeated scans
+    area_coords = {}  # area -> (lat, lon)
 
     for order in data:
         area = order.get("area", "Unknown")
@@ -72,8 +75,8 @@ def areaReport(data):
             revenue = 0
 
         created = parse_dt(order.get("created_at"))
-        pickup = order.get("pickup_task", {})
-        delivery = order.get("delivery_task", {})
+        pickup = order.get("pickup_task", {}) or {}
+        delivery = order.get("delivery_task", {}) or {}
 
         pickup_assigned = parse_dt(pickup.get("assigned_at"))
         pickup_arrived = parse_dt(pickup.get("arrived_at"))
@@ -83,7 +86,7 @@ def areaReport(data):
         delivery_arrived = parse_dt(delivery.get("arrived_at"))
         delivery_success = parse_dt(delivery.get("successful_at"))
 
-        # Aggregate metrics
+        # ---- metrics ----
         if created and delivery_success:
             areas[area]["DeliveryTimes"].append(
                 (delivery_success - created).total_seconds() / 60
@@ -105,15 +108,25 @@ def areaReport(data):
                 (delivery_success - delivery_arrived).total_seconds() / 60
             )
 
-        # Update counts
+        # ---- counts ----
         areas[area]["Orders"] += 1
         areas[area]["Revenue"] += revenue
+
+        # client name from "username" (fallback to legacy "user_name")
+        client_name = (order.get("username") or order.get("user_name") or "Unknown").strip() or "Unknown"
+        areas[area]["Clients"][client_name] += 1
+
+        # coords cache (first non-None wins)
+        lat = order.get("latitude")
+        lon = order.get("longitude")
+        if area not in area_coords and (lat is not None or lon is not None):
+            area_coords[area] = (lat, lon)
 
     # Helper for average
     def avg(lst):
         return round(sum(lst) / len(lst), 2) if lst else 0
 
-    # Build statcards
+    # ---- statcards ----
     total_orders = sum(a["Orders"] for a in areas.values())
     total_revenue = round(sum(a["Revenue"] for a in areas.values()), 2)
     avg_fare = round(total_revenue / total_orders, 2) if total_orders else 0
@@ -130,29 +143,15 @@ def areaReport(data):
         "average_delivery_time": avg_delivery_time,
     }
 
-    # Build heatmap data (sorted by orders desc) with lat/lon
+    # ---- heatmap (sorted by orders desc) ----
     heatmap = sorted(
         [
             {
                 "area": area,
                 "orders": a["Orders"],
-                "revenue": a["Revenue"],
-                "latitude": next(
-                    (
-                        order.get("latitude")
-                        for order in data
-                        if order.get("area") == area
-                    ),
-                    None,
-                ),
-                "longitude": next(
-                    (
-                        order.get("longitude")
-                        for order in data
-                        if order.get("area") == area
-                    ),
-                    None,
-                ),
+                "revenue": round(a["Revenue"], 2),
+                "latitude": (area_coords.get(area) or (None, None))[0],
+                "longitude": (area_coords.get(area) or (None, None))[1],
             }
             for area, a in areas.items()
         ],
@@ -160,32 +159,32 @@ def areaReport(data):
         reverse=True,
     )
 
-    # Build table data (sorted by orders desc)
-    table = sorted(
-        [
+    # ---- table (sorted by orders desc) with Top 5 Clients ----
+    table = []
+    for area, a in areas.items():
+        # efficient top-5 clients (no need to sort all)
+        top5 = heapq.nlargest(5, a["Clients"].items(), key=lambda kv: kv[1])
+        table.append(
             {
                 "Area": area,
                 "Orders": a["Orders"],
-                "Total Revenue": a["Revenue"],
-                "Average Fare": (
-                    round(a["Revenue"] / a["Orders"], 2) if a["Orders"] else 0
-                ),
+                "Total Revenue": round(a["Revenue"], 2),
+                "Average Fare": round(a["Revenue"] / a["Orders"], 2) if a["Orders"] else 0,
                 "Average Delivery Time (min)": avg(a["DeliveryTimes"]),
                 "Avg Time to Assign (min)": avg(a["AssignTimes"]),
                 "Avg Pickup Waiting (min)": avg(a["PickupWaits"]),
                 "Avg Travel to Customer (min)": avg(a["TravelTimes"]),
                 "Avg Dropoff Waiting (min)": avg(a["DropoffWaits"]),
+                "Top Clients": [
+                    {"client": name, "orders": count} for name, count in top5
+                ],
             }
-            for area, a in areas.items()
-        ],
-        key=lambda x: x["Orders"],
-        reverse=True,
-    )
+        )
 
-    # Take top 10 from the already-sorted table
+    table.sort(key=lambda x: x["Orders"], reverse=True)
+
+    # ---- top 10 areas bar (from sorted table) ----
     top_rows = table[:10]
-
-    # Recharts-friendly bar data
     top_areas_bar = [{"name": r["Area"], "value": r["Orders"]} for r in top_rows]
 
     return {
@@ -194,4 +193,3 @@ def areaReport(data):
         "table": table,
         "top_areas_bar": top_areas_bar,
     }
-
