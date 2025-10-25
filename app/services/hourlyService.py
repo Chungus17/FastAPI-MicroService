@@ -117,7 +117,7 @@ def hourlyReport(
 
     # ---- Summary (adjusted to read dicts) ----
     filtered_hours = [
-        h for h in hours_iter if total_orders_per_hour[h]["total_orders"] > 0
+        h for h in hours_iter if total_orders_per_hour[h]["orders"] > 0
     ]
     if filtered_hours:
         hottest_hour_key = max(
