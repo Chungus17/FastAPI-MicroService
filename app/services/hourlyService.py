@@ -75,12 +75,12 @@ def hourlyReport(
             hour_client_orders[h].items(), key=lambda x: x[1], reverse=True
         )[:top_n_clients]
         total_orders_per_hour[h] = {
-            "total_orders": len(hour_orders[h]),
+            "orders": len(hour_orders[h]),
             "top_clients": [{"name": c, "orders": n} for c, n in top_clients_total],
         }
 
     # ---- Hourly averages (now keyed by hour, same style) ----
-    hourly_chart = {}
+    average_orders_per_hour = {}
     for h in hours_iter:
         num_days = max(len(hour_dates_set[h]), 1)
         avg_orders = len(hour_orders[h]) / num_days
@@ -93,10 +93,10 @@ def hourlyReport(
             top_clients_avg, key=lambda x: x[1], reverse=True
         )[:top_n_clients]
 
-        hourly_chart[h] = {
-            "average_orders": round(avg_orders, 2),
+        average_orders_per_hour[h] = {
+            "orders": round(avg_orders, 2),
             "top_clients": [
-                {"name": c, "average_orders": round(a, 2)}
+                {"name": c, "orders": round(a, 2)}
                 for c, a in top_clients_avg_sorted
             ],
         }
@@ -110,7 +110,7 @@ def hourlyReport(
         total_orders_for_day = 0
         for h in hours_iter:
             avg_h = len(weekday_hour_orders[w][h]) / num_days_for_weekday
-            hours_list.append({"hour": h, "average_orders": round(avg_h, 2)})
+            hours_list.append({"hour": h, "orders": round(avg_h, 2)})
             total_orders_for_day += len(weekday_hour_orders[w][h])
         heatmap.append({"weekday": calendar.day_name[w], "hours": hours_list})
         total_orders_per_weekday[calendar.day_name[w]] = total_orders_for_day
@@ -121,13 +121,13 @@ def hourlyReport(
     ]
     if filtered_hours:
         hottest_hour_key = max(
-            filtered_hours, key=lambda h: hourly_chart[h]["average_orders"]
+            filtered_hours, key=lambda h: average_orders_per_hour[h]["orders"]
         )
         coolest_hour_key = min(
-            filtered_hours, key=lambda h: hourly_chart[h]["average_orders"]
+            filtered_hours, key=lambda h: average_orders_per_hour[h]["orders"]
         )
-        hottest_hour = {"hour": hottest_hour_key, **hourly_chart[hottest_hour_key]}
-        coolest_hour = {"hour": coolest_hour_key, **hourly_chart[coolest_hour_key]}
+        hottest_hour = {"hour": hottest_hour_key, **average_orders_per_hour[hottest_hour_key]}
+        coolest_hour = {"hour": coolest_hour_key, **average_orders_per_hour[coolest_hour_key]}
     else:
         hottest_hour = coolest_hour = None
 
@@ -181,6 +181,6 @@ def hourlyReport(
 
     return {
         "summary": summary,
-        "hourly_chart": hourly_chart,  # hours as keys (same style)
+        "hourly_chart": average_orders_per_hour,  # hours as keys (same style)
         "heatmap": heatmap,
     }
