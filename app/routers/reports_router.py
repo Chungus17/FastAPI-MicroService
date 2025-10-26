@@ -175,9 +175,9 @@ async def generate_area_report(
         t = dt.time()
         if start_time_obj <= end_time_obj:
             return start_time_obj <= t <= end_time_obj
-        else:
-            # Overnight range
-            return (t >= start_time_obj) or (t <= end_time_obj)
+        # else:
+        #     # Overnight range
+        #     return (t >= start_time_obj) or (t <= end_time_obj)
 
     # 3) Time filter on created_at
     data = [

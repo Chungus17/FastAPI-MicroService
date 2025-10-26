@@ -181,6 +181,6 @@ def hourlyReport(
 
     return {
         "summary": summary,
-        "hourly_chart": average_orders_per_hour,  # hours as keys (same style)
+        "average_orders_per_hour": average_orders_per_hour, 
         "heatmap": heatmap,
     }

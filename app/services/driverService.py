@@ -154,7 +154,6 @@ def driverReport(data):
 
     # ----------------- Optimized Top 10 Drivers -----------------
     top_by_orders = heapq.nlargest(10, rows, key=lambda x: x["Orders"])
-    top_by_fare = heapq.nlargest(10, rows, key=lambda x: x["Amount"])
     top_by_fastest_delivery = heapq.nsmallest(
         10, [r for r in rows if r["Average Delivery Time (min)"] is not None],
         key=lambda x: x["Average Delivery Time (min)"]
@@ -173,7 +172,6 @@ def driverReport(data):
         "top_drivers": {
             "top_by_orders": top_by_orders,
             "top_by_fastest_delivery": top_by_fastest_delivery,
-            "top_by_fare": top_by_fare
         }
     }
 
