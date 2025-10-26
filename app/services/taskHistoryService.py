@@ -71,7 +71,7 @@ def task_history_table(job_id, data):
 
         rows.append(
             {
-                "Order ID": order.get("id"),
+                "Order ID": order.get("reference"),
                 "Client": order.get("user_name"),
                 "Amount": round(abs(float(order.get("amount", 0))), 2),
                 "Status": order.get("status"),
