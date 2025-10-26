@@ -85,7 +85,10 @@ def driverReport(data):
         return datetime.strptime(ts, "%Y-%m-%d %H:%M:%S") if ts else None
 
     for order in data:
-        driver = order.get("pickup_task", {}).get("driver_name", "Unknown")
+        driver_raw = order.get("pickup_task", {}).get("driver_name")
+        driver = (driver_raw or "").strip()
+        if driver.lower() in {"", "null", "none", "na", "n/a", "nil"}:
+            continue
         amount_str = order.get("amount")
 
         try:
