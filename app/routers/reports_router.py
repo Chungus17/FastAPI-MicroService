@@ -131,9 +131,9 @@ async def generate_hourly_report(
             order
             for order in data
             if any(
-                (order.get("client", {}).get("name") or "").strip().lower() == f.lower()
+                (order.get("user_name") or "").strip().lower() == f.lower()
                 for f in filter_by
-                if (order.get("client", {}).get("name") or "").strip()
+                if (order.get("user_name") or "").strip()
             )
         ]
 
