@@ -218,7 +218,7 @@ async def generate_task_history(
 
     job_id = str(uuid.uuid4())
 
-    data = await getData(start_date, end_date, filter_by)
+    data = await getData(start_date, end_date, "all")
 
     if status != "all":
         data = [
