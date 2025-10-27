@@ -66,18 +66,15 @@ async def generate_client_report(
 ):
     data = await getData(start_date, end_date, "all")
 
-    # Filter by client name
+    # Filter by client name if provided
     if filter_by and not any(f.lower() == "all" for f in filter_by):
         data = [
             order
             for order in data
             if any(
-                (
-                    (order.get("client", {}).get("name") or "").strip().lower()
-                    == f.lower()
-                )
+                (order.get("user_name") or "").strip().lower() == f.lower()
                 for f in filter_by
-                if (order.get("client", {}).get("name") or "").strip()
+                if (order.get("user_name") or "").strip()
             )
         ]
 
