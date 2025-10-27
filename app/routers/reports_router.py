@@ -225,6 +225,18 @@ async def generate_task_history(
             order for order in data if str(order.get("status", "")).lower() == status
         ]
 
+    # Filter by client name if provided
+    if filter_by and not any(f.lower() == "all" for f in filter_by):
+        data = [
+            order
+            for order in data
+            if any(
+                (order.get("user_name") or "").strip().lower() == f.lower()
+                for f in filter_by
+                if (order.get("user_name") or "").strip()
+            )
+        ]
+
     # Start background thread to generate table data
     threading.Thread(target=task_history_table, args=(job_id, data)).start()
 
