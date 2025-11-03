@@ -1,60 +1,40 @@
 # app/routes/reports.py
 
-import json
-import os
 from fastapi import APIRouter, HTTPException, Query
-from typing import List, Optional
-from datetime import datetime
-from app.services.drivers.geo import haversine, get_bounding_box
+from typing import Literal
 from app.utils.firebase_connection import db
+from app.services.drivers.batchwise_AA import auto_allocation_batchwise
+from app.services.drivers.oneByOne_AA import auto_allocation_one_by_one
 
 router = APIRouter(prefix="/api/drivers", tags=["Drivers"])
 
 
 @router.get("/auto-allocation")
-def auto_allocation(pickup_lat: float, pickup_lng: float, radius: float = 2.0):
+def auto_allocation(
+    pickup_lat: float,
+    pickup_lng: float,
+    type: Literal["one_by_one", "batchwise"] = Query("one_by_one"),
+    max_radius: float = Query(15.0, ge=0.1),
+    increment: float = Query(5.0, ge=0.1),
+):
     if pickup_lat is None or pickup_lng is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="pickup_lat and pickup_lng are required",
         )
 
-    box = get_bounding_box(pickup_lat, pickup_lng, radius)
-
-    drivers_ref = (
-        db.collection("drivers")
-        .where("lat", ">=", box["min_lat"])
-        .where("lat", "<=", box["max_lat"])
-    )
-
-    try:
-        docs = drivers_ref.stream()
-        driver_summaries = []
-        for doc in docs:
-            data = doc.to_dict() or {}
-            driver_lat = data.get("lat")
-            driver_lng = data.get("lng")
-            if driver_lat is None or driver_lng is None:
-                continue
-
-            if box["min_lng"] <= float(driver_lng) <= box["max_lng"]:
-                distance = haversine(
-                    float(driver_lat), float(driver_lng), pickup_lat, pickup_lng
-                )
-                if distance <= radius:
-                    driver_summaries.append(
-                        {
-                            "driver_id": doc.id,
-                            "name": data.get("name"),
-                            "lat": float(driver_lat),
-                            "lng": float(driver_lng),
-                            "distance_km": round(distance, 2),
-                        }
-                    )
-
-        driver_summaries.sort(key=lambda x: x["distance_km"])
-        return {"driver_summaries": driver_summaries}
-
-    except Exception as e:
-        # Let FastAPI set the status code and JSON body
-        raise HTTPException(status_code=500, detail=str(e))
+    if type == "one_by_one":
+        return auto_allocation_one_by_one(
+            pickup_lat=pickup_lat,
+            pickup_lng=pickup_lng,
+            max_radius=max_radius,
+        )
+    elif type == "batchwise":
+        return auto_allocation_batchwise(
+            pickup_lat=pickup_lat,
+            pickup_lng=pickup_lng,
+            max_radius=max_radius,
+            increment=increment,
+        )
+    else:
+        return("Wrong algorithm type!!")
