@@ -98,5 +98,5 @@ def auto_allocation_batchwise(
         "max_radius_km": max_radius,
         "increment_km": increment,
         "total_drivers": total,
-        "groups": groups_map,          
+        "driver_summaries": groups_map,          
     }
