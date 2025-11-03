@@ -2,6 +2,7 @@ from typing import Dict, Any, List
 from app.services.drivers.geo import haversine, get_bounding_box
 from app.utils.firebase_connection import db
 
+
 def auto_allocation_one_by_one(
     pickup_lat: float,
     pickup_lng: float,
@@ -14,7 +15,10 @@ def auto_allocation_one_by_one(
 
     drivers_ref = (
         db.collection("drivers")
-        .where("lat", ">=", box["min_lat"])
+        .where("isOnline", "==", True)  # only online
+        .where("havingtask", "==", False)  # not having a task
+        .where("duty_state", "==", "ON_DUTY")  # on duty
+        .where("lat", ">=", box["min_lat"])  # single range field: lat
         .where("lat", "<=", box["max_lat"])
     )
 

@@ -3,6 +3,7 @@ from fastapi import HTTPException, status
 from app.services.drivers.geo import haversine, get_bounding_box
 from app.utils.firebase_connection import db
 
+
 def _make_buckets(max_radius: float, increment: float) -> List[Tuple[float, float]]:
     buckets: List[Tuple[float, float]] = []
     start = 0.0
@@ -11,6 +12,7 @@ def _make_buckets(max_radius: float, increment: float) -> List[Tuple[float, floa
         buckets.append((start, end))
         start = end
     return buckets
+
 
 def _bucket_index(distance: float, buckets: List[Tuple[float, float]]) -> int | None:
     for i, (start, end) in enumerate(buckets):
@@ -22,9 +24,11 @@ def _bucket_index(distance: float, buckets: List[Tuple[float, float]]) -> int | 
                 return i
     return None
 
+
 def _label(start: float, end: float) -> str:
     # e.g., 0-5, 5-10, 10-15 (no spaces; add spaces if you prefer "0 - 5")
     return f"{int(start) if start.is_integer() else start}-{int(end) if end.is_integer() else end}"
+
 
 def auto_allocation_batchwise(
     pickup_lat: float,
@@ -53,7 +57,10 @@ def auto_allocation_batchwise(
     box = get_bounding_box(pickup_lat, pickup_lng, max_radius)
     drivers_ref = (
         db.collection("drivers")
-        .where("lat", ">=", box["min_lat"])
+        .where("isOnline", "==", True)  # only online
+        .where("havingtask", "==", False)  # not having a task
+        .where("duty_state", "==", "ON_DUTY")  # on duty
+        .where("lat", ">=", box["min_lat"])  # single range field: lat
         .where("lat", "<=", box["max_lat"])
     )
 
@@ -98,5 +105,5 @@ def auto_allocation_batchwise(
         "max_radius_km": max_radius,
         "increment_km": increment,
         "total_drivers": total,
-        "driver_summaries": groups_map,          
+        "driver_summaries": groups_map,
     }
