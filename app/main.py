@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import reports_router
+from app.routers import drivers_router
 
 app = FastAPI(title="Analytics API", version="1.0")
 
@@ -15,7 +16,8 @@ app.add_middleware(
 
 # Include all routers
 app.include_router(reports_router.router)
+app.include_router(drivers_router.router)
 
 @app.get("/")
 async def root():
-    return {"message": "3PL Analytics API is running 🚀"}
+    return {"message": "Microservices are running 🚀"}
