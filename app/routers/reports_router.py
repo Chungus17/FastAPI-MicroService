@@ -10,12 +10,12 @@ import threading
 
 import redis
 
-from app.services.driverService import driverReport
-from app.services.clientService import clientReport
-from app.services.hourlyService import hourlyReport
-from app.services.driverEarningsService import driverEarnings
-from app.services.areaReport import areaReport, formatAreas
-from app.services.taskHistoryService import task_history, task_history_table
+from app.services.reports.driverService import driverReport
+from app.services.reports.clientService import clientReport
+from app.services.reports.hourlyService import hourlyReport
+from app.services.reports.driverEarningsService import driverEarnings
+from app.services.reports.areaReport import areaReport, formatAreas
+from app.services.reports.taskHistoryService import task_history, task_history_table
 from app.utils.data_fetcher import getData
 
 router = APIRouter(prefix="/api", tags=["Reports"])
