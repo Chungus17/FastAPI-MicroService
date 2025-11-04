@@ -15,10 +15,7 @@ def auto_allocation_one_by_one(
 
     drivers_ref = (
         db.collection("drivers")
-        .where("isOnline", "==", True)  # only online
-        .where("havingtask", "==", False)  # not having a task
-        .where("duty_state", "==", "ON_DUTY")  # on duty
-        .where("lat", ">=", box["min_lat"])  # single range field: lat
+        .where("lat", ">=", box["min_lat"]) 
         .where("lat", "<=", box["max_lat"])
     )
 

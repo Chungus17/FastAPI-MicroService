@@ -57,9 +57,6 @@ def auto_allocation_batchwise(
     box = get_bounding_box(pickup_lat, pickup_lng, max_radius)
     drivers_ref = (
         db.collection("drivers")
-        .where("isOnline", "==", True)  # only online
-        .where("havingtask", "==", False)  # not having a task
-        .where("duty_state", "==", "ON_DUTY")  # on duty
         .where("lat", ">=", box["min_lat"])  # single range field: lat
         .where("lat", "<=", box["max_lat"])
     )
@@ -95,6 +92,8 @@ def auto_allocation_batchwise(
             }
         )
         total += 1
+
+        print(f"The Duty State is {data.get("duty_state")}")
 
     # Sort each bucket by distance
     for lst in groups_map.values():
