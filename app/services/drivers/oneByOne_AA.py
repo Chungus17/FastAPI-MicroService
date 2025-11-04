@@ -33,6 +33,15 @@ def auto_allocation_one_by_one(
         if not (box["min_lng"] <= float(driver_lng) <= box["max_lng"]):
             continue
 
+        if data.get("duty_state") == "OFF_DUTY":
+            continue
+
+        if data.get("havingtask") == True:
+            continue
+
+        if data.get("isOnline") == False:
+            continue    
+
         d = haversine(float(driver_lat), float(driver_lng), pickup_lat, pickup_lng)
         if d <= max_radius:
             driver_summaries.append(
