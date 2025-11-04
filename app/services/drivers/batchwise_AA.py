@@ -81,6 +81,17 @@ def auto_allocation_batchwise(
         if idx is None:
             continue
 
+        # if data.get("duty_state") == "OFF_DUTY":
+        #     continue
+
+        # if data.get("havingtask") == True:
+        #     continue
+
+        # if data.get("isOnline") == False:
+        #     continue    
+
+        print(f"Duty state: {data.get("duty_state")} &&&& Having task is: {data.get("havingtask")} &&&& is Online is: {data.get("isOnline")}")
+
         lbl = labels[idx]
         groups_map[lbl].append(
             {
@@ -93,7 +104,6 @@ def auto_allocation_batchwise(
         )
         total += 1
 
-        print(f"The Duty State is {data.get("duty_state")}")
 
     # Sort each bucket by distance
     for lst in groups_map.values():
